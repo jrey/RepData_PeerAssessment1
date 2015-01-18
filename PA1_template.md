@@ -62,8 +62,6 @@ There are a total of 2304 missing values in the database.
 
 To avoid bias in the calculations we're going to fill in the missing values using the mean of the missing data interval.
 
-### Fill in NA values using interval mean
-
 
 ```r
 fill_in1 <- filter(data,is.na(steps)) %>% inner_join(iactv,by="interval") %>%

@@ -51,8 +51,6 @@ There are a total of `r dim(data)[1]-dim(activity)[1]` missing values in the dat
 
 To avoid bias in the calculations we're going to fill in the missing values using the mean of the missing data interval.
 
-### Fill in NA values using interval mean
-
 ```{r echo=TRUE}
 fill_in1 <- filter(data,is.na(steps)) %>% inner_join(iactv,by="interval") %>%
   select(steps=steps.y, date, interval) %>% rbind(activity)
