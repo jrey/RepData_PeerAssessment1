@@ -13,6 +13,8 @@ library(lattice)
 
 ## Loading and preprocessing the data
 
+Unzip, load the data and delete rows with missing values
+
 ```{r echo=TRUE}
 data <- read.csv(unz("activity.zip","activity.csv"), na.strings="NA",
                  colClasses=c("integer","Date","integer"))
@@ -22,63 +24,100 @@ activity <- data %>% filter(!is.na(steps))
 
 ## What is mean total number of steps taken per day?
 
+Build a daily activity data frame summarizing the number of steps per day,
+and compute the media and median of the daily summaries.
+
 ```{r echo=TRUE}
 daily <- activity %>% group_by(date) %>% summarise(steps=sum(steps))
 dmean   <- mean(daily$steps)
 dmedian <- median(daily$steps)
+```
+
+The mean total number of steps per day is: `r sprintf("%.4f",dmean)` and 
+the median is `r sprintf("%.4f",dmedian)`.
+
+```{r echo=TRUE}
 hist(daily$steps, col="light blue", main="Daily Steps", xlab="steps")
 abline(v=dmean,lty='dashed')
 abline(v=dmedian,lty='dotted')
 ```
 
-The mean total number of steps is: `r sprintf("%.4f",dmean)` and the median is `r dmedian`.
-
 ## What is the average daily activity pattern?
+
+Build a data frame with the mean of the number of steps by interval, and compute
+the most active interval which should yield a one row data frame.
 
 ```{r echo=TRUE}
 iactv <- activity %>% group_by(interval) %>% summarise(steps=mean(steps))
 most_active_interval = iactv %>% filter(steps==max(steps))
+```
+
+The most active interval is: `r most_active_interval[1,1]` with a mean of
+`r  sprintf("%.4f",most_active_interval[1,2])` steps.
+
+The following shows the average daily activity pattern, with the most
+active interval highlighted in red.
+
+```{r echo=TRUE}
 with(iactv, plot(x=interval, y=steps, type="l"))
-abline(v=most_active_interval[1,1],lti='dashed', col="red")
+abline(v=most_active_interval[1,1],lty='dashed', col="red")
 title(main="Daily activity pattern",sub="with most active interval")
 ```
 
-The most active interval is: `r most_active_interval[1,1]` with a mean of `r  most_active_interval[1,2]` steps.
 
 ## Imputing missing values
 
 There are a total of `r dim(data)[1]-dim(activity)[1]` missing values in the database.
 
-To avoid bias in the calculations we're going to fill in the missing values using the mean of the missing data interval.
+To avoid bias in the calculations fill in the missing values.
+
+The strategy will be to use the mean of the interval through the days to fill in
+the not available values.
 
 ```{r echo=TRUE}
 fill_in1 <- filter(data,is.na(steps)) %>% inner_join(iactv,by="interval") %>%
   select(steps=steps.y, date, interval) %>% rbind(activity)
 ```
 
+Build a daily activity data frame summarizing the number of steps per day,
+and compute the media and median of the daily summaries, for the fill in data.
+
 ```{r echo=TRUE}
 daily1 <- fill_in1 %>% group_by(date) %>% summarise(steps=sum(steps))
 dmean1   <- mean(daily1$steps)
 dmedian1 <- median(daily1$steps)
+```
+
+The mean total number of steps is: `r sprintf("%.4f",dmean1)` and the median is `r sprintf("%.4f",dmedian1)`.
+
+```{r echo=TRUE}
 hist(daily1$steps, col="light blue", main="Daily Steps", xlab="steps")
 abline(v=dmean1,lty='dashed')
 abline(v=dmedian1,lty='dotted')
 ```
 
-The mean total number of steps is: `r sprintf("%.4f",dmean1)` and the median is `r sprintf("%.4f",dmedian1)`.
-
 ## Are there differences in activity patterns between weekdays and weekends?
 
-Add weekdays as a factor, notice that I have used strftime to get the days as characters 0 to 6
-where 0 = sunday, this is to avoid protability problems due to locale settings.
+Build weekday factor, notice that strftime is used to get the days as numbers
+in the range 0 to 6 where 0 = sunday, this is to avoid locale issues with 
+weekday() which returns the day names in current locale.
 
 ```{r echo=TRUE}
-# Compute weekday factor
-weekday <- sapply( strftime(fill_in1$date,"%w"), function(x) if (x==0 | x == 6) {"weekend"} else {"weekday"} )
-wactiv <- mutate(fill_in1, weekday = as.factor( weekday )) %>% group_by(weekday,interval) %>% summarise(steps=mean(steps))
+weekday <- as.integer(strftime(fill_in1$date,"%w"))
+weekday <- factor(weekday == 0 | weekday == 6, labels=c("weekday","weekend"))
 ```
 
-The following graph shows the activity difference between weekdays and weekends
+Add the weekday and summarise using the mean of steps in dwactiv.
+
+```{r echo=TRUE}
+dwactiv <- fill_in1 %>% 
+  mutate(weekday) %>%
+  group_by(weekday,interval) %>%
+  summarise(steps=mean(steps))
+```
+
+Differences in activity patterns between weekdays and weekends are shown in
+the following graph.
 
 ```{r echo=TRUE}
 xyplot(steps ~ interval | weekday, data = wactiv, layout=c(1,2), type="l")
